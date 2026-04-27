@@ -255,11 +255,10 @@ export default function Game() {
     if (!ctx) return;
 
     // Clear background
-    ctx.fillStyle = '#f0f0f0';
-    ctx.fillRect(0, 0, LOGICAL_WIDTH, LOGICAL_HEIGHT);
+    ctx.clearRect(0, 0, LOGICAL_WIDTH, LOGICAL_HEIGHT);
 
     // Draw simple grid to make it look a bit office-like or classic
-    ctx.strokeStyle = '#e0e0e0';
+    ctx.strokeStyle = 'rgba(0, 0, 0, 0.05)';
     ctx.lineWidth = 1;
     for (let i = 0; i < LOGICAL_WIDTH; i += 20) {
       ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, LOGICAL_HEIGHT); ctx.stroke();
@@ -309,46 +308,73 @@ export default function Game() {
     };
   }, []);
 
-  // Touch controls for mobile responsiveness
-  const handleTouchStart = (direction: 'left' | 'right') => () => {
-    stateRef.current.keys[direction] = true;
+  // Pointer controls (Touch / Mouse on screen)
+  const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    if (x < rect.width / 2) {
+      stateRef.current.keys.left = true;
+      stateRef.current.keys.right = false;
+    } else {
+      stateRef.current.keys.right = true;
+      stateRef.current.keys.left = false;
+    }
   };
-  const handleTouchEnd = (direction: 'left' | 'right') => () => {
-    stateRef.current.keys[direction] = false;
+
+  const handlePointerUp = () => {
+    stateRef.current.keys.left = false;
+    stateRef.current.keys.right = false;
   };
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-neutral-900 text-white font-mono select-none overflow-hidden touch-none">
-      <div className="mb-4 text-center">
-        <h1 className="text-2xl font-bold text-yellow-400 mb-1">打工人生存战</h1>
-        <div className="flex items-center justify-center gap-4 text-sm text-neutral-300">
+    <div className="flex flex-col items-center justify-center min-h-screen text-white font-mono select-none overflow-hidden touch-none w-full px-4 relative">
+      <div 
+        className="absolute inset-0 z-0 opacity-20 pointer-events-none" 
+        style={{
+          backgroundImage: 'linear-gradient(#333 1px, transparent 1px), linear-gradient(90deg, #333 1px, transparent 1px), linear-gradient(rgba(0,0,0,.8) 30%, transparent)',
+          backgroundSize: '40px 40px, 40px 40px, 100% 100%',
+          backgroundColor: '#111'
+        }}
+      />
+      <div className="z-10 mb-2 text-center flex-shrink-0">
+        <h1 className="text-2xl font-bold text-yellow-400 mb-1 drop-shadow-md">打工人生存战</h1>
+        <div className="flex items-center justify-center gap-4 text-sm text-neutral-300 bg-black/40 px-3 py-1 rounded-full backdrop-blur-sm">
           <span>得分: {gameState.score}</span>
           <span>最高分: {highScore}</span>
         </div>
       </div>
 
-      <div className="relative">
+      <div 
+        className="relative z-10 w-full max-w-[360px] aspect-[120/200] max-h-[70vh] flex-shrink-0 cursor-pointer touch-none"
+        onPointerDown={handlePointerDown}
+        onPointerUp={handlePointerUp}
+        onPointerCancel={handlePointerUp}
+        onPointerLeave={handlePointerUp}
+      >
         {/* The logical canvas mapped to a larger physical size for pixel art feel */}
         <canvas
           ref={canvasRef}
           width={LOGICAL_WIDTH}
           height={LOGICAL_HEIGHT}
-          className="bg-white border-4 border-neutral-700 rounded-md shadow-2xl"
+          className="w-full h-full bg-white/90 border-4 border-neutral-700/80 rounded-md shadow-2xl block backdrop-blur-sm"
           style={{
-            width: `${LOGICAL_WIDTH * 3}px`,
-            height: `${LOGICAL_HEIGHT * 3}px`,
             imageRendering: 'pixelated',
           }}
         />
 
         {gameState.status === 'IDLE' && (
-          <div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center p-4 text-center rounded-md">
+          <div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center p-4 text-center rounded-md pointer-events-none">
             <h2 className="text-xl font-bold mb-4">准备上班？</h2>
-            <p className="text-xs text-neutral-300 mb-2">⬅️ ➡️ 控制左右移动</p>
-            <p className="text-xs text-neutral-300 mb-2">☕ 加速 | 🥘 黑锅立死 | 📁 📱 扣分减速</p>
+            <p className="text-sm text-yellow-300 mb-2">👇 点击屏幕左/右侧移动</p>
+            <p className="text-xs text-neutral-300 mb-2">💻 电脑可用方向键 ⬅️ ➡️</p>
+            <p className="text-xs text-neutral-300 mb-2 mt-4 flex items-center justify-center flex-wrap gap-2">
+               <span>☕ 加速</span> 
+               <span>🥘 触发辞退(Game Over)</span> 
+               <span>📁/📱 扣分减速</span>
+            </p>
             <button
-              onClick={startGame}
-              className="mt-4 px-6 py-2 bg-yellow-500 hover:bg-yellow-400 text-black font-bold rounded"
+              onClick={(e) => { e.stopPropagation(); startGame(); }}
+              className="mt-6 px-6 py-2 bg-yellow-500 hover:bg-yellow-400 text-black font-bold rounded pointer-events-auto active:scale-95 transition-transform"
             >
               开始打工
             </button>
@@ -356,12 +382,12 @@ export default function Game() {
         )}
 
         {gameState.status === 'GAMEOVER' && (
-          <div className="absolute inset-0 bg-black/80 flex flex-col items-center justify-center p-4 text-center rounded-md">
+          <div className="absolute inset-0 bg-black/80 flex flex-col items-center justify-center p-4 text-center rounded-md pointer-events-none">
             <h2 className="text-2xl font-bold text-red-500 mb-2">背锅了！</h2>
             <p className="mb-4 text-neutral-200">最终得分: {gameState.score}</p>
             <button
-              onClick={startGame}
-              className="px-6 py-2 bg-blue-500 hover:bg-blue-400 text-white font-bold rounded mb-2"
+              onClick={(e) => { e.stopPropagation(); startGame(); }}
+              className="px-6 py-2 bg-blue-500 hover:bg-blue-400 text-white font-bold rounded mb-4 pointer-events-auto active:scale-95 transition-transform"
             >
               重新开始
             </button>
@@ -370,32 +396,9 @@ export default function Game() {
         )}
       </div>
 
-      {/* Mobile controls */}
-      <div className="mt-8 flex gap-8 md:hidden">
-        <button
-          className="w-20 h-20 bg-neutral-800 rounded-full flex items-center justify-center active:bg-neutral-700 border-2 border-neutral-600 shadow-lg"
-          onTouchStart={handleTouchStart('left')}
-          onTouchEnd={handleTouchEnd('left')}
-          onMouseDown={handleTouchStart('left')}
-          onMouseUp={handleTouchEnd('left')}
-          onMouseLeave={handleTouchEnd('left')}
-        >
-          <span className="text-3xl">⬅️</span>
-        </button>
-        <button
-          className="w-20 h-20 bg-neutral-800 rounded-full flex items-center justify-center active:bg-neutral-700 border-2 border-neutral-600 shadow-lg"
-          onTouchStart={handleTouchStart('right')}
-          onTouchEnd={handleTouchEnd('right')}
-          onMouseDown={handleTouchStart('right')}
-          onMouseUp={handleTouchEnd('right')}
-          onMouseLeave={handleTouchEnd('right')}
-        >
-          <span className="text-3xl">➡️</span>
-        </button>
-      </div>
-
-      <div className="hidden md:block mt-6 text-sm text-neutral-500">
-        键盘方向键 ⬅️ ➡️ 或 A/D 键横跳
+      <div className="mt-4 text-xs text-neutral-500 text-center flex-shrink-0 px-2">
+        手机端：长按屏幕左/右半边可移动。 <br className="md:hidden" />
+        电脑端：使用左右方向键或A/D键。
       </div>
     </div>
   );
